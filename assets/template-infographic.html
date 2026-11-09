@@ -1,0 +1,497 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark light">
+  <title>System atlas — interactive infographic</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #242a35; --surface: #2e3440; --surface-raised: #353d4b;
+      --surface-soft: #303846; --border: #4c566a; --text: #eceff4;
+      --muted: #b6c0d0; --subtle: #a4b0c1; --accent: #88c0d0;
+      --accent-soft: rgba(136, 192, 208, .12); --green: #a3be8c;
+      --amber: #ebcb8b; --nord-red: #bf616a; --nord-purple: #b48ead; --nord-orange: #d08770;
+      --red: #d68b93; --keyword: #c49cbb; --shadow: 0 22px 65px rgba(13, 18, 27, .23);
+      --sidebar-width: 248px; --header-height: 72px;
+    }
+    :root[data-theme="light"] {
+      color-scheme: light;
+      --bg: #e5e9f0; --surface: #fff; --surface-raised: #f4f6f9;
+      --surface-soft: #edf1f5; --border: #c9d2dd; --text: #2e3440;
+      --muted: #4c566a; --subtle: #5b697a; --accent: #346d7d;
+      --accent-soft: rgba(52, 109, 125, .1); --green: #4f7040;
+      --amber: #8c661c; --red: #a4434d; --nord-red: #a4434d; --nord-purple: #805179; --nord-orange: #a85232; --keyword: #805179; --shadow: 0 22px 65px rgba(46, 52, 64, .1);
+    }
+    *, *::before, *::after { box-sizing: border-box; }
+    html { scroll-behavior: smooth; scroll-padding-top: calc(var(--header-height) + 32px); }
+    body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.6 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    button, a { font: inherit; }
+    button { color: inherit; }
+    button, a[href] { -webkit-tap-highlight-color: transparent; }
+    button:focus-visible, a:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
+    a { color: inherit; }
+    .icon-sprite { position: absolute; width: 0; height: 0; overflow: hidden; }
+    .fa-solid { width: 1em; height: 1em; display: inline-block; flex: none; fill: currentColor; vertical-align: -.125em; }
+    .skip-link { position: fixed; top: 8px; left: 8px; z-index: 100; padding: 8px 14px; background: var(--text); color: var(--bg); transform: translateY(-160%); }
+    .skip-link:focus { transform: translateY(0); }
+    .topbar { height: var(--header-height); display: flex; align-items: center; gap: 18px; padding: 0 28px; position: sticky; top: 0; z-index: 30; background: var(--surface); border-bottom: 1px solid var(--border); }
+    .brand { display: flex; align-items: center; gap: 11px; text-decoration: none; font-weight: 750; letter-spacing: -.03em; white-space: nowrap; }
+    .brand-mark { width: 34px; height: 34px; display: grid; place-items: center; border: 1px solid var(--accent); border-radius: 10px; color: var(--accent); background: var(--accent-soft); }
+    .topbar-label { color: var(--subtle); font-size: 12px; padding-left: 18px; border-left: 1px solid var(--border); }
+    .topbar-actions { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+    .icon-button, .theme-button { border: 1px solid var(--border); background: transparent; border-radius: 9px; cursor: pointer; min-height: 40px; display: inline-flex; align-items: center; justify-content: center; gap: 9px; }
+    .icon-button { width: 40px; font-size: 14px; }
+    .theme-button { padding: 0 12px; font-size: 12px; font-weight: 650; }
+    .icon-button:hover, .theme-button:hover { background: var(--surface-raised); }
+    .shell { display: grid; grid-template-columns: var(--sidebar-width) minmax(0, 1fr); min-height: calc(100vh - var(--header-height)); }
+    .shell.toc-collapsed { grid-template-columns: 0 minmax(0, 1fr); }
+    .sidebar { position: sticky; top: var(--header-height); align-self: start; height: calc(100vh - var(--header-height)); overflow-y: auto; background: var(--surface); border-right: 1px solid var(--border); padding: 32px 16px; }
+    .toc-collapsed .sidebar { visibility: hidden; padding-left: 0; padding-right: 0; border: 0; overflow: hidden; }
+    .sidebar-title, .eyebrow, .section-kicker, .card-label, .diagram-caption { text-transform: uppercase; letter-spacing: .13em; font-size: 10px; font-weight: 750; }
+    .sidebar-title { margin: 0 12px 16px; color: var(--subtle); }
+    .toc-list { list-style: none; padding: 0; margin: 0; display: grid; gap: 4px; }
+    .toc-link { display: flex; gap: 12px; align-items: center; border-radius: 8px; padding: 10px 12px; text-decoration: none; color: var(--muted); font-size: 13px; font-weight: 600; }
+    .toc-link span { color: var(--subtle); font-size: 10px; font-variant-numeric: tabular-nums; }
+    .toc-link:hover { background: var(--surface-raised); color: var(--text); }
+    .toc-link[aria-current="location"] { background: var(--accent-soft); color: var(--accent); }
+    .toc-link[aria-current="location"] span { color: var(--accent); }
+    .sidebar-note { margin: 36px 12px 0; padding-top: 20px; border-top: 1px solid var(--border); color: var(--subtle); font-size: 12px; }
+    .sidebar-note strong { display: block; color: var(--muted); font-size: 12px; margin-bottom: 4px; }
+    .toc-backdrop { display: none; }
+    main { min-width: 0; }
+    .content { width: min(100% - 80px, 1180px); margin: 0 auto; padding: 56px 0 100px; }
+    .hero { position: relative; overflow: hidden; padding: 42px; border: 1px solid var(--border); border-radius: 18px; background: var(--surface); box-shadow: var(--shadow); }
+    .hero::after { content: ""; position: absolute; width: 370px; height: 370px; right: -120px; top: -190px; border: 1px solid var(--border); border-radius: 50%; box-shadow: 0 0 0 38px var(--surface), 0 0 0 39px var(--border), 0 0 0 78px var(--surface), 0 0 0 79px var(--border); pointer-events: none; opacity: .7; }
+    .hero-copy { position: relative; z-index: 1; max-width: 720px; }
+    .eyebrow { color: var(--accent); display: flex; align-items: center; gap: 9px; }
+    .eyebrow::before { content: ""; width: 7px; height: 7px; background: var(--accent); border-radius: 50%; }
+    h1, h2, h3, p { margin-top: 0; }
+    h1 { margin: 16px 0; font-size: clamp(36px, 4.7vw, 58px); line-height: 1.08; letter-spacing: -.055em; font-weight: 750; }
+    .hero-copy > p { max-width: 600px; color: var(--muted); font-size: 16px; line-height: 1.75; }
+    .hero-actions { display: flex; flex-wrap: wrap; gap: 10px; margin: 25px 0 34px; }
+    .button { display: inline-flex; align-items: center; justify-content: center; gap: 9px; padding: 10px 16px; min-height: 44px; border: 1px solid var(--border); border-radius: 9px; background: transparent; color: var(--text); text-decoration: none; font-size: 12px; font-weight: 750; cursor: pointer; }
+    .button:hover { background: var(--surface-raised); }
+    .button-primary { background: var(--accent); color: var(--bg); border-color: var(--accent); }
+    .button-primary:hover { background: var(--text); border-color: var(--text); }
+    .card-grid, .metric-grid, .interactive-grid, .nord-card-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; align-items: stretch; grid-auto-rows: 1fr; }
+    .card-grid > :last-child:nth-child(3n + 1):not(:first-child), .metric-grid > :last-child:nth-child(3n + 1):not(:first-child), .interactive-grid > :last-child:nth-child(3n + 1):not(:first-child), .nord-card-grid > :last-child:nth-child(3n + 1):not(:first-child) { grid-column: 1 / -1; }
+    .hero-card { position: relative; z-index: 1; min-width: 0; padding: 19px 20px; border: 1px solid var(--border); border-radius: 11px; background: var(--surface-soft); }
+    .card-grid > *, .metric-grid > *, .interactive-grid > *, .nord-card-grid > * { display: flex; flex-direction: column; justify-content: space-between; }
+    .card-label { color: var(--subtle); }
+    .hero-card strong { display: block; margin: 8px 0 2px; font-size: 19px; letter-spacing: -.035em; }
+    .hero-card p { margin: 0; color: var(--muted); font-size: 12px; }
+    .section { margin-top: 80px; scroll-margin-top: calc(var(--header-height) + 25px); }
+    .section-heading { display: flex; align-items: end; justify-content: space-between; gap: 24px; margin-bottom: 24px; }
+    .section-heading h2 { margin: 5px 0 0; font-size: clamp(26px, 3vw, 34px); letter-spacing: -.045em; line-height: 1.2; }
+    .section-heading > p { max-width: 385px; margin: 0; color: var(--muted); font-size: 13px; }
+    .section-kicker { color: var(--accent); }
+    .feature-card, .panel, .diagram, .table-wrap, .code-panel, .lifecycle { border: 1px solid var(--border); border-radius: 13px; background: var(--surface); }
+    .feature-card { padding: 24px; display: flex; flex-direction: column; }
+    .feature-icon { display: grid; place-items: center; width: 40px; height: 40px; margin-bottom: 25px; color: var(--accent); background: var(--accent-soft); border-radius: 10px; }
+    .feature-card h3, .panel h3 { margin: 0 0 8px; font-size: 16px; letter-spacing: -.02em; }
+    .feature-card p, .panel p { color: var(--muted); font-size: 13px; margin: 0; }
+    .feature-card .card-index { margin-top: auto; padding-top: 24px; color: var(--subtle); font-size: 11px; font-weight: 700; }
+    .diagram { overflow: hidden; }
+    .diagram-header { display: flex; justify-content: space-between; gap: 16px; padding: 20px 24px; border-bottom: 1px solid var(--border); }
+    .diagram-header strong { font-size: 13px; }
+    .diagram-caption { color: var(--subtle); }
+    .diagram-flow { position: relative; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 9%; align-items: center; padding: 54px 8%; overflow: hidden; }
+    .flow-svg { position: absolute; left: 16%; top: 50%; width: 68%; height: 54px; transform: translateY(-50%); overflow: visible; pointer-events: none; }
+    .flow-line { stroke: var(--border); stroke-width: 2; stroke-dasharray: 4 5; fill: none; }
+    .flow-pulse { fill: var(--accent); animation: flow-horizontal 5s linear infinite; }
+    .flow-vertical { display: none; }
+    @keyframes flow-horizontal { to { transform: translateX(600px); } }
+    @keyframes flow-vertical { to { transform: translateY(600px); } }
+    .flow-node { position: relative; text-align: center; padding: 22px 12px; background: var(--surface-raised); border: 1px solid var(--border); border-radius: 11px; }
+    .flow-node .fa-solid { color: var(--accent); font-size: 18px; }
+    .flow-node strong { display: block; margin: 9px 0 3px; font-size: 13px; }
+    .flow-node small { color: var(--muted); font-size: 11px; }
+    .lifecycle { padding: 26px; }
+    .lc-steps { display: grid; grid-template-columns: repeat(10, minmax(0, 1fr)); gap: 5px; }
+    .lc-step { min-width: 0; border: 0; background: transparent; padding: 0 2px 14px; color: var(--subtle); cursor: pointer; text-align: center; }
+    .lc-step-number { display: grid; place-items: center; width: 34px; height: 34px; margin: 0 auto 9px; border: 1px solid var(--border); border-radius: 50%; background: var(--surface-raised); font-size: 11px; font-weight: 750; }
+    .lc-step-label { display: block; overflow-wrap: anywhere; font-size: 10px; font-weight: 650; }
+    .lc-step:hover, .lc-step[aria-pressed="true"] { color: var(--accent); }
+    .lc-step[aria-pressed="true"] .lc-step-number { color: var(--bg); background: var(--accent); border-color: var(--accent); }
+    .lc-detail { display: flex; align-items: start; gap: 18px; margin-top: 12px; padding: 22px; background: var(--surface-soft); border: 1px solid var(--border); border-radius: 10px; }
+    .lc-detail-number { color: var(--accent); font-size: 23px; font-weight: 750; line-height: 1; font-variant-numeric: tabular-nums; }
+    .lc-detail h3 { margin: 0 0 5px; font-size: 15px; }
+    .lc-detail p { margin: 0; color: var(--muted); font-size: 13px; }
+    .diagram-panels .panel { padding: 22px; }
+    .panel-visual { height: 102px; display: flex; align-items: center; justify-content: center; gap: 9px; margin-bottom: 22px; background: var(--surface-soft); border: 1px solid var(--border); border-radius: 9px; color: var(--accent); }
+    .visual-block { display: grid; place-items: center; width: 40px; height: 40px; border: 1px solid var(--border); border-radius: 9px; background: var(--surface); }
+    .visual-line { width: 24px; height: 1px; background: var(--accent); }
+    .diagram-sequence { display: flex; align-items: center; justify-content: center; gap: 8px; }
+    .sequence-dot { width: 12px; height: 12px; border: 2px solid var(--accent); border-radius: 50%; }
+    .sequence-dot:nth-child(3) { background: var(--accent); }
+    .table-wrap { overflow-x: auto; }
+    table.compare-table { width: 100%; border-collapse: collapse; text-align: left; min-width: 650px; }
+    .compare-table th, .compare-table td { padding: 1rem 1.15rem; border-bottom: 1px solid var(--border); vertical-align: middle; }
+    .compare-table th { color: var(--subtle); font-size: 10px; text-transform: uppercase; letter-spacing: .1em; }
+    .compare-table td { color: var(--muted); font-size: 13px; }
+    .compare-table td:first-child { color: var(--text); font-weight: 700; }
+    .compare-table tbody tr:last-child td { border-bottom: 0; }
+    .compare-table .row-selected { background: rgba(163, 190, 140, .12); }
+    .compare-table .row-evaluated { background: rgba(235, 203, 139, .12); }
+    .compare-table .row-rejected { background: rgba(191, 97, 106, .12); }
+    .compare-table .row-selected > :first-child { box-shadow: inset .25rem 0 #A3BE8C; }
+    .compare-table .row-evaluated > :first-child { box-shadow: inset .25rem 0 #EBCB8B; }
+    .compare-table .row-rejected > :first-child { box-shadow: inset .25rem 0 #BF616A; }
+    .cell-title, .cell-sub { display: block; }
+    .cell-sub { color: var(--muted); font-size: 11px; font-weight: 400; }
+    .status, .status-pill { display: inline-flex; align-items: center; gap: 6px; padding: 4px 9px; border: 1px solid currentColor; border-radius: 999px; font-size: 10px; font-weight: 750; white-space: nowrap; }
+    .status::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+    .status-selected { color: var(--green); } .status-evaluated { color: var(--amber); } .status-rejected { color: var(--red); }
+    .pill-good { color: var(--green); } .pill-warn { color: var(--amber); } .pill-bad { color: var(--red); } .pill-info { color: var(--accent); }
+    .implementation-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; align-items: stretch; }
+    .implementation-copy { padding: 22px 4px; }
+    .implementation-copy h3 { font-size: 19px; letter-spacing: -.03em; margin-bottom: 10px; }
+    .implementation-copy p { color: var(--muted); font-size: 13px; max-width: 420px; }
+    .card-mini-stack { display: flex; flex-direction: column; gap: 10px; margin-top: 14px; }
+    .nord-mini-card { padding: 12px 16px; border: 1px solid var(--border); border-left: 4px solid var(--accent); border-radius: 8px; background: var(--surface-soft); font-size: 13px; color: var(--text); }
+    .nord-mini-card p { margin: 0; color: var(--text); font-size: 13px; }
+    .nord-mini-card.border-green { border-left-color: var(--green); }
+    .nord-mini-card.border-blue { border-left-color: var(--accent); }
+    .nord-mini-card.border-yellow { border-left-color: var(--amber); }
+    .nord-mini-card.border-purple { border-left-color: var(--nord-purple); }
+    .nord-mini-card.border-orange { border-left-color: var(--nord-orange); }
+    .nord-mini-card.border-red { border-left-color: var(--nord-red); }
+    .code-panel { grid-column: span 2; overflow: hidden; }
+    .code-header { padding: 14px 18px; border-bottom: 1px solid var(--border); color: var(--subtle); font-size: 11px; font-weight: 700; }
+    pre { margin: 0; padding: 20px; overflow-x: auto; color: var(--text); font: 12px/1.8 ui-monospace, SFMono-Regular, Consolas, monospace; tab-size: 2; }
+    .token-keyword { color: var(--keyword); } .token-string { color: var(--green); } .token-number { color: var(--amber); } .token-comment { color: var(--subtle); }
+    footer { display: flex; justify-content: space-between; gap: 16px; margin-top: 80px; padding-top: 22px; border-top: 1px solid var(--border); color: var(--subtle); font-size: 12px; }
+    .modal-layer { position: fixed; inset: 0; z-index: 50; display: grid; place-items: center; padding: 20px; background: rgba(15, 20, 28, .72); }
+    .modal-layer[hidden] { display: none; }
+    .modal { width: min(100%, 480px); max-height: min(85vh, 700px); overflow: auto; padding: 26px; background: var(--surface); border: 1px solid var(--border); border-radius: 15px; box-shadow: var(--shadow); }
+    .modal-heading { display: flex; justify-content: space-between; align-items: start; gap: 16px; }
+    .modal h2 { margin: 5px 0 12px; font-size: 24px; letter-spacing: -.04em; }
+    .modal p { color: var(--muted); font-size: 14px; }
+    .modal .button { margin-top: 10px; }
+    @media (max-width: 1000px) {
+      .content { width: min(100% - 48px, 1180px); }
+      .lc-steps { grid-template-columns: repeat(5, minmax(0, 1fr)); row-gap: 12px; }
+    }
+    @media (max-width: 760px) {
+      :root { --header-height: 64px; }
+      .topbar { padding: 0 16px; gap: 12px; }
+      .topbar-label { display: none; }
+      .shell, .shell.toc-collapsed { display: block; }
+      .sidebar, .toc-collapsed .sidebar { visibility: visible; position: fixed; z-index: 41; top: var(--header-height); bottom: 0; left: 0; width: min(280px, 85vw); height: auto; padding: 28px 16px; border-right: 1px solid var(--border); overflow-y: auto; transform: translateX(-105%); transition: transform .2s ease; }
+      .shell.drawer-open .sidebar { transform: translateX(0); }
+      .toc-backdrop { position: fixed; z-index: 40; inset: var(--header-height) 0 0; background: rgba(15, 20, 28, .65); }
+      .shell.drawer-open .toc-backdrop { display: block; }
+      .content { width: min(100% - 32px, 1180px); padding-top: 24px; }
+      .hero { padding: 26px 22px; }
+      .hero::after { opacity: .3; }
+      .card-grid, .metric-grid, .interactive-grid, .nord-card-grid, .implementation-grid { grid-template-columns: 1fr; }
+      .card-grid > :last-child:nth-child(3n + 1):not(:first-child), .metric-grid > :last-child:nth-child(3n + 1):not(:first-child), .interactive-grid > :last-child:nth-child(3n + 1):not(:first-child), .nord-card-grid > :last-child:nth-child(3n + 1):not(:first-child) { grid-column: auto; }
+      .code-panel { grid-column: auto; }
+      .section { margin-top: 58px; }
+      .section-heading { display: block; }
+      .section-heading > p { margin-top: 10px; }
+      .diagram-flow { grid-template-columns: 1fr; gap: 30px; padding: 26px; }
+      .flow-horizontal { display: none; }
+      .flow-vertical { display: block; left: 50%; top: 15%; width: 54px; height: 70%; transform: translateX(-50%); }
+      .flow-vertical .flow-pulse { animation-name: flow-vertical; }
+      .flow-node { padding: 16px; }
+      .lc-steps { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+      footer { flex-direction: column; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      html { scroll-behavior: auto; }
+      *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
+      .flow-pulse, .flow-vertical .flow-pulse { animation: none; }
+    }
+  </style>
+</head>
+<body>
+  <svg class="icon-sprite" aria-hidden="true" focusable="false">
+    <symbol id="icon-grid" viewBox="0 0 448 512"><path d="M0 64C0 46.3 14.3 32 32 32H192c17.7 0 32 14.3 32 32V224c0 17.7-14.3 32-32 32H32C14.3 256 0 241.7 0 224V64zm256 0c0-17.7 14.3-32 32-32H416c17.7 0 32 14.3 32 32V192c0 17.7-14.3 32-32 32H288c-17.7 0-32-14.3-32-32V64zM0 320c0-17.7 14.3-32 32-32H160c17.7 0 32 14.3 32 32V448c0 17.7-14.3 32-32 32H32C14.3 480 0 465.7 0 448V320zm224 0c0-17.7 14.3-32 32-32H416c17.7 0 32 14.3 32 32V448c0 17.7-14.3 32-32 32H256c-17.7 0-32-14.3-32-32V320z"/></symbol>
+    <symbol id="icon-menu" viewBox="0 0 448 512"><path d="M0 96c0-17.7 14.3-32 32-32H416c17.7 0 32 14.3 32 32s-14.3 32-32 32H32C14.3 128 0 113.7 0 96zm0 160c0-17.7 14.3-32 32-32H416c17.7 0 32 14.3 32 32s-14.3 32-32 32H32c-17.7 0-32-14.3-32-32zm448 160c0 17.7-14.3 32-32 32H32c-17.7 0-32-14.3-32-32s14.3-32 32-32H416c17.7 0 32 14.3 32 32z"/></symbol>
+    <symbol id="icon-circle-half" viewBox="0 0 512 512"><path d="M256 8a248 248 0 1 0 0 496 248 248 0 1 0 0-496zm0 448V56c110.5 0 200 89.5 200 200s-89.5 200-200 200z"/></symbol>
+    <symbol id="icon-arrow-right" viewBox="0 0 448 512"><path d="M438.6 278.6c12.5-12.5 12.5-32.8 0-45.3l-192-192c-12.5-12.5-32.8-12.5-45.3 0s-12.5 32.8 0 45.3L338.7 224H32C14.3 224 0 238.3 0 256s14.3 32 32 32H338.7L201.4 425.4c-12.5 12.5-12.5 32.8 0 45.3s32.8 12.5 45.3 0l192-192z"/></symbol>
+    <symbol id="icon-circle-info" viewBox="0 0 512 512"><path d="M256 512a256 256 0 1 0 0-512 256 256 0 1 0 0 512zm0-368a32 32 0 1 1 0 64 32 32 0 1 1 0-64zm-40 112c0-13.3 10.7-24 24-24h16c13.3 0 24 10.7 24 24v72h8c13.3 0 24 10.7 24 24s-10.7 24-24 24H224c-13.3 0-24-10.7-24-24s10.7-24 24-24h8v-48c-9.3-3.3-16-12.2-16-22z"/></symbol>
+    <symbol id="icon-layer-group" viewBox="0 0 512 512"><path d="M248.5 1.9c4.8-2.5 10.2-2.5 15 0l240 128c5.2 2.8 8.5 8.2 8.5 14.1s-3.3 11.3-8.5 14.1l-240 128c-4.8 2.5-10.2 2.5-15 0l-240-128C3.3 155.3 0 149.9 0 144s3.3-11.3 8.5-14.1l240-128zM0 256c0-5.9 3.3-11.3 8.5-14.1l42.4-22.6 182.5 97.3c14.1 7.5 31.1 7.5 45.2 0l182.5-97.3 42.4 22.6c5.2 2.8 8.5 8.2 8.5 14.1s-3.3 11.3-8.5 14.1l-240 128c-4.8 2.5-10.2 2.5-15 0l-240-128C3.3 267.3 0 261.9 0 256zm0 112c0-5.9 3.3-11.3 8.5-14.1l42.4-22.6 182.5 97.3c14.1 7.5 31.1 7.5 45.2 0l182.5-97.3 42.4 22.6c5.2 2.8 8.5 8.2 8.5 14.1s-3.3 11.3-8.5 14.1l-240 128c-4.8 2.5-10.2 2.5-15 0l-240-128C3.3 379.3 0 373.9 0 368z"/></symbol>
+    <symbol id="icon-arrows" viewBox="0 0 512 512"><path d="M502.6 70.6c12.5 12.5 12.5 32.8 0 45.3l-64 64c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L402.7 125H128c-35.3 0-64 28.7-64 64v14c0 17.7-14.3 32-32 32S0 220.7 0 203v-14C0 118.3 57.3 61 128 61H402.7l-9.4-9.4c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l64 64zM9.4 441.4c-12.5-12.5-12.5-32.8 0-45.3l64-64c12.5-12.5 32.8-12.5 45.3 0s12.5 32.8 0 45.3l-9.4 9.4H384c35.3 0 64-28.7 64-64v-14c0-17.7 14.3-32 32-32s32 14.3 32 32v14c0 70.7-57.3 128-128 128H109.3l9.4 9.4c12.5 12.5 12.5 32.8 0 45.3s-32.8 12.5-45.3 0l-64-64z"/></symbol>
+    <symbol id="icon-chart" viewBox="0 0 512 512"><path d="M32 32c17.7 0 32 14.3 32 32V416c0 17.7 14.3 32 32 32H480c17.7 0 32 14.3 32 32s-14.3 32-32 32H96c-53 0-96-43-96-96V64C0 46.3 14.3 32 32 32zM160 256c17.7 0 32 14.3 32 32v80c0 17.7-14.3 32-32 32s-32-14.3-32-32V288c0-17.7 14.3-32 32-32zm128-96c17.7 0 32 14.3 32 32V368c0 17.7-14.3 32-32 32s-32-14.3-32-32V192c0-17.7 14.3-32 32-32zM416 64c17.7 0 32 14.3 32 32V368c0 17.7-14.3 32-32 32s-32-14.3-32-32V96c0-17.7 14.3-32 32-32z"/></symbol>
+    <symbol id="icon-database" viewBox="0 0 448 512"><path d="M448 80c0 44.2-100.3 80-224 80S0 124.2 0 80 100.3 0 224 0s224 35.8 224 80zM0 144c48.1 32.8 136.2 48 224 48s175.9-15.2 224-48v80c0 44.2-100.3 80-224 80S0 268.2 0 224V144zm0 144c48.1 32.8 136.2 48 224 48s175.9-15.2 224-48v80c0 44.2-100.3 80-224 80S0 412.2 0 368V288zm0 144c48.1 32.8 136.2 48 224 48s175.9-15.2 224-48v0c0 44.2-100.3 80-224 80S0 476.2 0 432z"/></symbol>
+    <symbol id="icon-gear" viewBox="0 0 512 512"><path d="M487.4 315.7l-42.6-24.6a192 192 0 0 0 0-70.2l42.6-24.6a24 24 0 0 0 10.8-29.1 255 255 0 0 0-48-83.1 24 24 0 0 0-30.6-5.2L377 103.5a191 191 0 0 0-60.8-35.1V19.2A24 24 0 0 0 296.4-4a259 259 0 0 0-80.8 0 24 24 0 0 0-19.8 23.2v49.2a191 191 0 0 0-60.8 35.1L92.4 78.9a24 24 0 0 0-30.6 5.2 255 255 0 0 0-48 83.1 24 24 0 0 0 10.8 29.1l42.6 24.6a192 192 0 0 0 0 70.2l-42.6 24.6a24 24 0 0 0-10.8 29.1 255 255 0 0 0 48 83.1 24 24 0 0 0 30.6 5.2l42.6-24.6a191 191 0 0 0 60.8 35.1v49.2a24 24 0 0 0 19.8 23.2 259 259 0 0 0 80.8 0 24 24 0 0 0 19.8-23.2v-49.2a191 191 0 0 0 60.8-35.1l42.6 24.6a24 24 0 0 0 30.6-5.2 255 255 0 0 0 48-83.1 24 24 0 0 0-10.8-29.1zM256 336a80 80 0 1 1 0-160 80 80 0 0 1 0 160z"/></symbol>
+    <symbol id="icon-xmark" viewBox="0 0 384 512"><path d="M342.6 150.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0L192 210.7 86.6 105.4c-12.5-12.5-32.8-12.5-45.3 0s-12.5 32.8 0 45.3L146.7 256 41.4 361.4c-12.5 12.5-12.5 32.8 0 45.3s32.8 12.5 45.3 0L192 301.3 297.4 406.6c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L237.3 256 342.6 150.6z"/></symbol>
+  </svg>
+  <a class="skip-link" href="#main">Skip to content</a>
+  <header class="topbar">
+    <button class="icon-button" id="tocToggle" type="button" aria-controls="tocSidebar" aria-expanded="true" aria-label="Toggle table of contents"><svg class="fa-solid fa-bars" aria-hidden="true"><use href="#icon-menu"></use></svg></button>
+    <a class="brand" href="#top"><span class="brand-mark"><svg class="fa-solid fa-table-cells-large" aria-hidden="true"><use href="#icon-grid"></use></svg></span>System atlas</a>
+    <span class="topbar-label">An interactive field guide</span>
+    <div class="topbar-actions"><button class="theme-button" id="themeToggle" type="button" aria-label="Switch to light theme"><svg class="fa-solid fa-circle-half-stroke" aria-hidden="true"><use href="#icon-circle-half"></use></svg><span id="themeLabel">Light mode</span></button></div>
+  </header>
+  <div class="shell" id="top">
+    <nav class="sidebar" id="tocSidebar" aria-label="Table of contents">
+      <p class="sidebar-title">On this page</p>
+      <div class="toc-list">
+        <a class="toc-link" href="#overview"><span>01</span> Overview</a>
+        <a class="toc-link" href="#flow"><span>02</span> Data flow</a>
+        <a class="toc-link" href="#lifecycle"><span>03</span> Lifecycle</a>
+        <a class="toc-link" href="#patterns"><span>04</span> Patterns</a>
+        <a class="toc-link" href="#comparison"><span>05</span> Comparison</a>
+        <a class="toc-link" href="#implementation"><span>06</span> Implementation</a>
+      </div>
+      <div class="sidebar-note"><strong>A reusable canvas</strong>Explore the parts, then make the story your own.</div>
+    </nav>
+    <div class="toc-backdrop" id="tocBackdrop" aria-hidden="true"></div>
+    <main id="main"><div class="content">
+      <section class="hero" aria-labelledby="heroTitle">
+        <div class="hero-copy"><div class="eyebrow">A visual guide to connected systems</div>
+          <h1 id="heroTitle">Make the complex<br>feel simple.</h1>
+          <p>Explore how individual pieces come together, follow their journey, and see the decisions that shape a thoughtful system.</p>
+          <div class="hero-actions"><a class="button button-primary" href="#overview">Explore the guide <svg class="fa-solid fa-arrow-right" aria-hidden="true"><use href="#icon-arrow-right"></use></svg></a><button class="button" id="openModal" type="button"><svg class="fa-solid fa-circle-info" aria-hidden="true"><use href="#icon-circle-info"></use></svg> About this guide</button></div>
+        </div>
+        <div class="card-grid metric-grid" aria-label="Guide at a glance">
+          <article class="hero-card"><span class="card-label">The big picture</span><strong>3 perspectives</strong><p>Structure, movement, and decisions.</p></article>
+          <article class="hero-card"><span class="card-label">The journey</span><strong>10 phases</strong><p>From the first idea to reflection.</p></article>
+          <article class="hero-card"><span class="card-label">The outcome</span><strong>One clear story</strong><p>Designed for exploration.</p></article>
+        </div>
+      </section>
+
+      <section class="section" id="overview" aria-labelledby="overviewTitle">
+        <div class="section-heading"><div><div class="section-kicker">01 / The foundation</div><h2 id="overviewTitle">Start with the essentials.</h2></div><p>A useful overview gives every part a purpose and makes the connections easier to understand.</p></div>
+        <div class="card-grid nord-card-grid">
+          <article class="feature-card"><div class="feature-icon"><svg class="fa-solid fa-layer-group" aria-hidden="true"><use href="#icon-layer-group"></use></svg></div><h3>Define the parts</h3><p>Give each element a clear role, boundary, and relationship to the whole.</p><span class="card-index">01 / STRUCTURE</span></article>
+          <article class="feature-card"><div class="feature-icon"><svg class="fa-solid fa-arrows-rotate" aria-hidden="true"><use href="#icon-arrows"></use></svg></div><h3>Trace the movement</h3><p>Follow how information moves between stages and changes along the way.</p><span class="card-index">02 / FLOW</span></article>
+          <article class="feature-card"><div class="feature-icon"><svg class="fa-solid fa-chart-column" aria-hidden="true"><use href="#icon-chart"></use></svg></div><h3>Evaluate the choices</h3><p>Make trade-offs visible so that decisions are easier to explain and revisit.</p><span class="card-index">03 / EVIDENCE</span></article>
+        </div>
+      </section>
+
+      <section class="section" id="flow" aria-labelledby="flowTitle">
+        <div class="section-heading"><div><div class="section-kicker">02 / The movement</div><h2 id="flowTitle">Follow the flow.</h2></div><p>A simple path from incoming signals to useful outcomes, with context at every step.</p></div>
+        <div class="diagram"><div class="diagram-header"><strong>From input to outcome</strong><span class="diagram-caption">Conceptual flow</span></div>
+          <div class="diagram-flow" aria-label="Data flows from input through processing to output">
+            <svg class="flow-svg flow-horizontal" viewBox="0 0 600 54" preserveAspectRatio="none" aria-hidden="true"><path class="flow-line" d="M 0 27 H 600"/><circle class="flow-pulse" cx="0" cy="27" r="5"/></svg>
+            <svg class="flow-svg flow-vertical" viewBox="0 0 54 600" preserveAspectRatio="none" aria-hidden="true"><path class="flow-line" d="M 27 0 V 600"/><circle class="flow-pulse" cx="27" cy="0" r="5"/></svg>
+            <div class="flow-node"><svg class="fa-solid fa-database" aria-hidden="true"><use href="#icon-database"></use></svg><strong>Input</strong><small>Gather signals</small></div>
+            <div class="flow-node"><svg class="fa-solid fa-gear" aria-hidden="true"><use href="#icon-gear"></use></svg><strong>Process</strong><small>Organize and interpret</small></div>
+            <div class="flow-node"><svg class="fa-solid fa-chart-column" aria-hidden="true"><use href="#icon-chart"></use></svg><strong>Output</strong><small>Share an outcome</small></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="section" id="lifecycle" aria-labelledby="lifecycleTitle">
+        <div class="section-heading"><div><div class="section-kicker">03 / The journey</div><h2 id="lifecycleTitle">A lifecycle in ten steps.</h2></div><p>Select a phase to explore what happens at each point in the journey.</p></div>
+        <div class="lifecycle"><div class="lc-steps" aria-label="Lifecycle phases">
+          <button type="button" class="lc-step" data-phase="Discover" aria-pressed="true"><span class="lc-step-number">01</span><span class="lc-step-label">Discover</span></button>
+          <button type="button" class="lc-step" data-phase="Define" aria-pressed="false"><span class="lc-step-number">02</span><span class="lc-step-label">Define</span></button>
+          <button type="button" class="lc-step" data-phase="Explore" aria-pressed="false"><span class="lc-step-number">03</span><span class="lc-step-label">Explore</span></button>
+          <button type="button" class="lc-step" data-phase="Plan" aria-pressed="false"><span class="lc-step-number">04</span><span class="lc-step-label">Plan</span></button>
+          <button type="button" class="lc-step" data-phase="Design" aria-pressed="false"><span class="lc-step-number">05</span><span class="lc-step-label">Design</span></button>
+          <button type="button" class="lc-step" data-phase="Build" aria-pressed="false"><span class="lc-step-number">06</span><span class="lc-step-label">Build</span></button>
+          <button type="button" class="lc-step" data-phase="Validate" aria-pressed="false"><span class="lc-step-number">07</span><span class="lc-step-label">Validate</span></button>
+          <button type="button" class="lc-step" data-phase="Release" aria-pressed="false"><span class="lc-step-number">08</span><span class="lc-step-label">Release</span></button>
+          <button type="button" class="lc-step" data-phase="Observe" aria-pressed="false"><span class="lc-step-number">09</span><span class="lc-step-label">Observe</span></button>
+          <button type="button" class="lc-step" data-phase="Refine" aria-pressed="false"><span class="lc-step-number">10</span><span class="lc-step-label">Refine</span></button>
+        </div><div class="lc-detail" aria-live="polite" aria-atomic="true"><span class="lc-detail-number" id="phaseNumber">01</span><div><h3 id="phaseTitle">Discover</h3><p id="phaseDescription">Listen, gather context, and identify the opportunity worth exploring.</p></div></div></div>
+      </section>
+
+      <section class="section" id="patterns" aria-labelledby="patternsTitle">
+        <div class="section-heading"><div><div class="section-kicker">04 / The building blocks</div><h2 id="patternsTitle">See the patterns.</h2></div><p>Different views reveal different relationships. Choose the one that best fits the story.</p></div>
+        <div class="diagram-panels card-grid interactive-grid">
+          <article class="panel"><div class="panel-visual" aria-hidden="true"><span class="visual-block"><svg class="fa-solid fa-database"><use href="#icon-database"></use></svg></span><span class="visual-line"></span><span class="visual-block"><svg class="fa-solid fa-gear"><use href="#icon-gear"></use></svg></span></div><h3>Connected parts</h3><p>Show how distinct elements relate and exchange information.</p></article>
+          <article class="panel"><div class="panel-visual diagram-sequence" aria-hidden="true"><span class="sequence-dot"></span><span class="visual-line"></span><span class="sequence-dot"></span><span class="visual-line"></span><span class="sequence-dot"></span></div><h3>Ordered sequence</h3><p>Make the progression from one moment to the next easy to follow.</p></article>
+          <article class="panel"><div class="panel-visual" aria-hidden="true"><span class="visual-block"><svg class="fa-solid fa-layer-group"><use href="#icon-layer-group"></use></svg></span><span class="visual-block"><svg class="fa-solid fa-chart-column"><use href="#icon-chart"></use></svg></span></div><h3>Parallel views</h3><p>Place related ideas side by side to reveal their differences.</p></article>
+        </div>
+      </section>
+
+      <section class="section" id="comparison" aria-labelledby="comparisonTitle">
+        <div class="section-heading"><div><div class="section-kicker">05 / The trade-offs</div><h2 id="comparisonTitle">Compare the options.</h2></div><p>Document the reasoning alongside the outcome, not just the final choice.</p></div>
+        <div class="table-wrap" role="region" aria-label="Option comparison" tabindex="0"><table class="compare-table"><thead><tr><th scope="col">Approach</th><th scope="col">Strength</th><th scope="col">Consideration</th><th scope="col">Status</th></tr></thead><tbody>
+          <tr class="row-selected"><td><span class="cell-title">Balanced</span><span class="cell-sub">Current choice</span></td><td>Clear and adaptable</td><td>A good fit for the current goal</td><td><span class="status status-pill pill-good">Selected</span></td></tr>
+          <tr class="row-evaluated"><td><span class="cell-title">Focused</span><span class="cell-sub">Considered</span></td><td>Simple to introduce</td><td>Less flexible as needs grow</td><td><span class="status status-pill pill-warn">Evaluated</span></td></tr>
+          <tr class="row-rejected"><td><span class="cell-title">Expansive</span><span class="cell-sub">Not chosen</span></td><td>Broad range of possibilities</td><td>More complexity than needed</td><td><span class="status status-pill pill-bad">Rejected</span></td></tr>
+        </tbody></table></div>
+      </section>
+
+      <section class="section" id="implementation" aria-labelledby="implementationTitle">
+        <div class="section-heading"><div><div class="section-kicker">06 / Put it together</div><h2 id="implementationTitle">Turn insight into action.</h2></div><p>Keep the model understandable, observable, and ready to evolve.</p></div>
+        <div class="implementation-grid"><div class="implementation-copy"><h3>Keep the next step clear.</h3><p>A small, explicit model is easier to discuss than a collection of disconnected details.</p><div class="card-mini-stack"><div class="nord-mini-card border-blue"><p>Describe the intent before the mechanics.</p></div><div class="nord-mini-card border-green"><p>Make the current state visible.</p></div><div class="nord-mini-card border-purple"><p>Revisit assumptions as you learn.</p></div></div></div>
+          <div class="code-panel"><div class="code-header">EXAMPLE / CONCEPTUAL MODEL</div><pre class="code-block"><code class="language-javascript">// A small model for a clear outcome
+const guide = {
+  phase: "discover",
+  signals: 3,
+  ready: true
+};
+
+function nextStep(model) {
+  return model.ready ? "explore" : "observe";
+}</code></pre></div>
+        </div>
+      </section>
+      <footer><span>System atlas / A reusable visual guide</span><span>Designed for clarity, built for exploration.</span></footer>
+    </div></main>
+  </div>
+
+  <div class="modal-layer" id="infoModal" hidden><div class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle" aria-describedby="modalDescription" tabindex="-1"><div class="modal-heading"><div><div class="section-kicker">About the guide</div><h2 id="modalTitle">A starting point, not a prescription.</h2></div><button class="icon-button" id="closeModal" type="button" aria-label="Close dialog"><svg class="fa-solid fa-xmark" aria-hidden="true"><use href="#icon-xmark"></use></svg></button></div><p id="modalDescription">This generic example brings together diagrams, decisions, and an interactive lifecycle. Adapt the language and content to tell your own story.</p><button class="button button-primary" id="modalDone" type="button">Got it</button></div></div>
+
+  <script>
+    (() => {
+      const root = document.documentElement;
+      const shell = document.querySelector('.shell');
+      const sidebar = document.getElementById('tocSidebar');
+      const tocToggle = document.getElementById('tocToggle');
+      const backdrop = document.getElementById('tocBackdrop');
+      const mobile = window.matchMedia('(max-width: 760px)');
+      const readStorage = (key) => { try { return localStorage.getItem(key); } catch { return null; } };
+      const writeStorage = (key, value) => { try { localStorage.setItem(key, value); } catch { /* Storage may be unavailable. */ } };
+      let desktopOpen = readStorage('infographic-toc') !== 'closed';
+      let drawerOpen = false;
+
+      function syncToc() {
+        const open = mobile.matches ? drawerOpen : desktopOpen;
+        shell.classList.toggle('toc-collapsed', !mobile.matches && !desktopOpen);
+        shell.classList.toggle('drawer-open', mobile.matches && drawerOpen);
+        tocToggle.setAttribute('aria-expanded', String(open));
+        sidebar.inert = !open;
+      }
+      tocToggle.addEventListener('click', () => {
+        if (mobile.matches) drawerOpen = !drawerOpen;
+        else { desktopOpen = !desktopOpen; writeStorage('infographic-toc', desktopOpen ? 'open' : 'closed'); }
+        syncToc();
+      });
+      function closeDrawer(restoreFocus = false) {
+        if (!drawerOpen) return;
+        drawerOpen = false;
+        syncToc();
+        if (restoreFocus) tocToggle.focus();
+      }
+      backdrop.addEventListener('click', () => closeDrawer(true));
+      mobile.addEventListener('change', () => { drawerOpen = false; syncToc(); });
+      syncToc();
+
+      const themeButton = document.getElementById('themeToggle');
+      const themeLabel = document.getElementById('themeLabel');
+      function setTheme(theme) {
+        root.dataset.theme = theme;
+        const next = theme === 'dark' ? 'light' : 'dark';
+        themeButton.setAttribute('aria-label', `Switch to ${next} theme`);
+        themeLabel.textContent = `${next[0].toUpperCase()}${next.slice(1)} mode`;
+      }
+      const savedTheme = readStorage('infographic-theme');
+      setTheme(savedTheme === 'light' || savedTheme === 'dark' ? savedTheme : 'dark');
+      themeButton.addEventListener('click', () => {
+        const next = root.dataset.theme === 'dark' ? 'light' : 'dark';
+        setTheme(next);
+        writeStorage('infographic-theme', next);
+      });
+
+      const links = [...document.querySelectorAll('.toc-link')];
+      const sections = links.map((link) => document.getElementById(link.getAttribute('href').slice(1))).filter(Boolean);
+      function setActiveSection(id) {
+        links.forEach((link) => {
+          if (link.getAttribute('href') === `#${id}`) link.setAttribute('aria-current', 'location');
+          else link.removeAttribute('aria-current');
+        });
+      }
+      function updateActiveSection() {
+        const threshold = window.innerHeight * .3;
+        let current = sections[0];
+        sections.forEach((section) => { if (section.getBoundingClientRect().top <= threshold) current = section; });
+        if (window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 2) current = sections[sections.length - 1];
+        if (current) setActiveSection(current.id);
+      }
+      links.forEach((link) => link.addEventListener('click', () => { setActiveSection(link.hash.slice(1)); closeDrawer(); }));
+      if ('IntersectionObserver' in window) {
+        const observer = new IntersectionObserver(updateActiveSection, { rootMargin: '-20% 0px -65% 0px', threshold: 0 });
+        sections.forEach((section) => observer.observe(section));
+      }
+      window.addEventListener('scroll', updateActiveSection, { passive: true });
+      window.addEventListener('resize', updateActiveSection);
+      updateActiveSection();
+
+      const phases = [
+        ['Discover', 'Listen, gather context, and identify the opportunity worth exploring.'],
+        ['Define', 'Frame the problem and agree on the outcome that matters.'],
+        ['Explore', 'Consider possibilities and make room for different perspectives.'],
+        ['Plan', 'Set priorities, sequence the work, and identify constraints.'],
+        ['Design', 'Shape an understandable approach around the intended experience.'],
+        ['Build', 'Turn the chosen approach into something tangible.'],
+        ['Validate', 'Check the result against the goal and learn from feedback.'],
+        ['Release', 'Make the outcome available with a clear path for adoption.'],
+        ['Observe', 'Pay attention to how the outcome behaves in context.'],
+        ['Refine', 'Use what was learned to improve the next iteration.']
+      ];
+      const phaseButtons = [...document.querySelectorAll('.lc-step')];
+      const normalizePhase = (value) => value.toLocaleLowerCase().trim().replace(/^\d+\s*[.\-:)]*\s*/, '').replace(/[^\p{L}\p{N}]+/gu, '');
+      function selectPhase(button) {
+        const index = phases.findIndex(([name]) => normalizePhase(name) === normalizePhase(button.dataset.phase || button.textContent));
+        if (index < 0) return;
+        phaseButtons.forEach((item) => item.setAttribute('aria-pressed', String(item === button)));
+        document.getElementById('phaseNumber').textContent = String(index + 1).padStart(2, '0');
+        document.getElementById('phaseTitle').textContent = phases[index][0];
+        document.getElementById('phaseDescription').textContent = phases[index][1];
+      }
+      phaseButtons.forEach((button, index) => {
+        button.addEventListener('click', () => selectPhase(button));
+        button.addEventListener('keydown', (event) => {
+          if (!['ArrowRight', 'ArrowDown', 'ArrowLeft', 'ArrowUp'].includes(event.key)) return;
+          event.preventDefault();
+          const direction = event.key === 'ArrowRight' || event.key === 'ArrowDown' ? 1 : -1;
+          const next = phaseButtons[(index + direction + phaseButtons.length) % phaseButtons.length];
+          next.focus();
+          selectPhase(next);
+        });
+      });
+
+      const modalLayer = document.getElementById('infoModal');
+      const dialog = modalLayer.querySelector('.modal');
+      const openModal = document.getElementById('openModal');
+      let previousFocus = null;
+      function showModal() {
+        previousFocus = document.activeElement;
+        modalLayer.hidden = false;
+        document.getElementById('closeModal').focus();
+      }
+      function hideModal() {
+        modalLayer.hidden = true;
+        if (previousFocus && previousFocus.isConnected) previousFocus.focus();
+      }
+      openModal.addEventListener('click', showModal);
+      document.getElementById('closeModal').addEventListener('click', hideModal);
+      document.getElementById('modalDone').addEventListener('click', hideModal);
+      modalLayer.addEventListener('click', (event) => { if (event.target === modalLayer) hideModal(); });
+      document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape') {
+          if (!modalLayer.hidden) { event.preventDefault(); hideModal(); }
+          else if (drawerOpen) { event.preventDefault(); closeDrawer(true); }
+          return;
+        }
+        if (event.key !== 'Tab' || modalLayer.hidden) return;
+        const focusable = [...dialog.querySelectorAll('a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])')].filter((element) => !element.hidden && element.getClientRects().length);
+        if (!focusable.length) { event.preventDefault(); dialog.focus(); return; }
+        const first = focusable[0];
+        const last = focusable[focusable.length - 1];
+        if (event.shiftKey && (document.activeElement === first || !dialog.contains(document.activeElement))) { event.preventDefault(); last.focus(); }
+        else if (!event.shiftKey && (document.activeElement === last || !dialog.contains(document.activeElement))) { event.preventDefault(); first.focus(); }
+      });
+
+      document.querySelectorAll('code.language-javascript').forEach((code) => {
+        const source = code.textContent;
+        const tokens = /(\/\/[^\n]*|\/\*[\s\S]*?\*\/|"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|`(?:\\.|[^`\\])*`|\b(?:const|let|var|function|return|if|else|true|false|null|undefined)\b|\b\d+(?:\.\d+)?\b)/g;
+        const fragment = document.createDocumentFragment();
+        let last = 0;
+        for (const match of source.matchAll(tokens)) {
+          fragment.append(document.createTextNode(source.slice(last, match.index)));
+          const span = document.createElement('span');
+          const value = match[0];
+          span.className = value.startsWith('/') ? 'token-comment' : /^["'`]/.test(value) ? 'token-string' : /^\d/.test(value) ? 'token-number' : 'token-keyword';
+          span.textContent = value;
+          fragment.append(span);
+          last = match.index + value.length;
+        }
+        fragment.append(document.createTextNode(source.slice(last)));
+        code.replaceChildren(fragment);
+      });
+    })();
+  </script>
+</body>
+</html>

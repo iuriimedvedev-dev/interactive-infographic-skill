@@ -1,0 +1,461 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; img-src data:">
+  <meta name="color-scheme" content="light dark">
+  <title>Agentic Judge Evaluation Report</title>
+  <style>
+    :root {
+      color-scheme: light dark;
+      --page: #242933;
+      --surface: #2e3440;
+      --surface-alt: #3b4252;
+      --text: #eceff4;
+      --muted: #c2cbd8;
+      --border: #596577;
+      --accent: #88c0d0;
+      --good: #b7dec0;
+      --good-bg: #304b42;
+      --warn: #f2d394;
+      --warn-bg: #534a35;
+      --bad: #f1b3bb;
+      --bad-bg: #563a43;
+      --info: #a9d4e5;
+      --info-bg: #344d5c;
+      --nord11: #bf616a;
+      --nord12: #d08770;
+      --nord13: #ebcb8b;
+      --nord14: #a3be8c;
+      --nord15: #b48ead;
+      --shadow: 0 12px 30px rgba(0, 0, 0, 0.15);
+    }
+
+    @media (prefers-color-scheme: light) {
+      :root {
+        --page: #eceff4;
+        --surface: #ffffff;
+        --surface-alt: #e5e9f0;
+        --text: #2e3440;
+        --muted: #4c566a;
+        --border: #c5ceda;
+        --accent: #286675;
+        --good: #285d48;
+        --good-bg: #dceee4;
+        --warn: #76520d;
+        --warn-bg: #f7eaca;
+        --bad: #913d49;
+        --bad-bg: #f8e1e4;
+        --info: #325d79;
+        --info-bg: #dceaf2;
+        --shadow: 0 12px 30px rgba(46, 52, 64, 0.06);
+      }
+    }
+
+    *, *::before, *::after { box-sizing: border-box; }
+    html { background: var(--page); }
+    body {
+      margin: 0;
+      color: var(--text);
+      background: var(--page);
+      font: 1rem/1.55 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      overflow-wrap: anywhere;
+    }
+    main { width: min(100% - 2rem, 76rem); margin: 0 auto; padding: 3rem 0 4rem; }
+    h1, h2, h3, p { margin: 0; }
+    h1, h2, h3 { line-height: 1.2; }
+    h1 { font-size: clamp(2rem, 5vw, 3.25rem); letter-spacing: -0.045em; }
+    h2 { font-size: 1.25rem; letter-spacing: -0.02em; }
+    h3 { font-size: 1rem; }
+    .eyebrow, .section-kicker {
+      color: var(--accent);
+      font-size: 0.72rem;
+      font-weight: 750;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+    }
+    .report-header { margin-bottom: 2rem; }
+    .report-header h1 { margin-top: 0.55rem; max-width: 28ch; }
+    .report-header p:last-child { color: var(--muted); margin-top: 0.7rem; }
+    .panel {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 1rem;
+      box-shadow: var(--shadow);
+    }
+    .summary {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 1.25rem;
+      padding: 1.5rem;
+      border-top: 0.25rem solid var(--accent);
+    }
+    .summary h2 { margin: 0.35rem 0 0.75rem; }
+    .score-block { text-align: right; }
+    .score-label { display: block; color: var(--muted); font-size: 0.8rem; font-weight: 650; }
+    .score { display: block; font-size: clamp(2rem, 5vw, 3rem); font-weight: 750; letter-spacing: -0.04em; line-height: 1.1; }
+    .section { margin-top: 2.25rem; }
+    .section-heading { margin-bottom: 1rem; }
+    .section-heading h2 { margin-top: 0.3rem; }
+    .section-heading p:last-child:not(.section-kicker) { color: var(--muted); font-size: 0.9rem; margin-top: 0.4rem; }
+
+    /* 3-Card KPI Grid */
+    .kpi-grid, .metric-grid, .card-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      grid-auto-rows: 1fr;
+      gap: 1rem;
+    }
+    .kpi-grid > *, .metric-grid > *, .card-grid > * {
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 1.25rem;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 0.85rem;
+      box-shadow: var(--shadow);
+    }
+    .kpi-grid > :last-child:nth-child(3n + 1):not(:first-child),
+    .metric-grid > :last-child:nth-child(3n + 1):not(:first-child) {
+      grid-column: 1 / -1;
+    }
+    .kpi-label, .kpi-title { color: var(--muted); font-size: 0.8rem; font-weight: 650; }
+    .kpi-value { display: block; margin-top: 0.45rem; font-size: clamp(1.35rem, 3vw, 2rem); font-weight: 750; line-height: 1.15; }
+    .kpi-sub, .kpi-description { display: block; margin-top: 0.4rem; color: var(--muted); font-size: 0.8rem; }
+
+    /* Progress Bars & Tracks */
+    .progress-panel, .diagnostics { padding: 1.5rem; }
+    .progress-item + .progress-item { margin-top: 1.25rem; }
+    .progress-header { display: flex; justify-content: space-between; gap: 1rem; margin-bottom: 0.45rem; font-size: 0.9rem; font-weight: 650; }
+    .progress-track, progress {
+      display: block;
+      width: 100%;
+      height: 0.65rem;
+      overflow: hidden;
+      border: 0;
+      border-radius: 999px;
+      background: var(--surface-alt);
+    }
+    .progress-fill { display: block; height: 100%; border-radius: inherit; background: var(--accent); }
+
+    /* Diagram Panels */
+    .diagram-panels {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 1rem;
+    }
+    .diagram-panels .panel {
+      padding: 1.25rem;
+    }
+    .panel-visual {
+      height: 80px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      margin-bottom: 1rem;
+      background: var(--surface-alt);
+      border: 1px solid var(--border);
+      border-radius: 0.5rem;
+      color: var(--accent);
+    }
+    .visual-block {
+      display: grid;
+      place-items: center;
+      width: 32px;
+      height: 32px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      background: var(--surface);
+      font-size: 0.75rem;
+      font-weight: 700;
+    }
+    .visual-line {
+      width: 20px;
+      height: 2px;
+      background: var(--accent);
+    }
+
+    /* Comparison Table */
+    .table-wrap { width: 100%; overflow-x: auto; border: 1px solid var(--border); border-radius: 0.85rem; background: var(--surface); box-shadow: var(--shadow); }
+    .compare-table { width: 100%; min-width: 42rem; border-collapse: collapse; text-align: left; }
+    .compare-table th, .compare-table td { padding: 1rem 1.15rem; vertical-align: top; border-bottom: 1px solid var(--border); }
+    .compare-table thead th { color: var(--muted); background: var(--surface-alt); font-size: 0.75rem; letter-spacing: 0.05em; text-transform: uppercase; }
+    .compare-table tbody tr:last-child td, .compare-table tbody tr:last-child th { border-bottom: 0; }
+    .compare-table .row-selected { background: var(--good-bg); }
+    .compare-table .row-evaluated { background: var(--warn-bg); }
+    .compare-table .row-rejected { background: var(--bad-bg); }
+    .compare-table .row-selected > :first-child { box-shadow: inset 0.25rem 0 var(--nord14); }
+    .compare-table .row-evaluated > :first-child { box-shadow: inset 0.25rem 0 var(--nord13); }
+    .compare-table .row-rejected > :first-child { box-shadow: inset 0.25rem 0 var(--nord11); }
+    .cell-title { display: block; color: var(--text); font-weight: 700; }
+    .cell-sub { display: block; color: var(--muted); font-size: 0.85rem; margin-top: 0.2rem; }
+
+    /* Status Pills */
+    .status-pill { display: inline-flex; align-items: center; max-width: 100%; padding: 0.3rem 0.7rem; border: 1px solid currentColor; border-radius: 999px; font-size: 0.75rem; font-weight: 750; line-height: 1.3; }
+    .pill-good { color: var(--good); background: var(--good-bg); }
+    .pill-warn { color: var(--warn); background: var(--warn-bg); }
+    .pill-bad { color: var(--bad); background: var(--bad-bg); }
+    .pill-info { color: var(--info); background: var(--info-bg); }
+    .legend { display: flex; flex-wrap: wrap; gap: 0.5rem; margin: 0 0 0.85rem; }
+    .legend .status-pill { font-size: 0.7rem; }
+
+    /* Colored Nord Mini-Cards (Strict Replacement for Bullet Lists) */
+    .card-mini-stack { display: flex; flex-direction: column; gap: 0.65rem; margin-top: 0.85rem; }
+    .nord-mini-card {
+      padding: 0.75rem 1rem;
+      border: 1px solid var(--border);
+      border-left: 0.25rem solid var(--accent);
+      border-radius: 0.65rem;
+      background: var(--surface-alt);
+      font-size: 0.85rem;
+      color: var(--text);
+    }
+    .nord-mini-card p { margin: 0; color: var(--text); font-size: inherit; }
+    .nord-mini-card.border-green  { border-left-color: var(--nord14); }
+    .nord-mini-card.border-blue   { border-left-color: var(--accent); }
+    .nord-mini-card.border-yellow { border-left-color: var(--nord13); }
+    .nord-mini-card.border-purple { border-left-color: var(--nord15); }
+    .nord-mini-card.border-orange { border-left-color: var(--nord12); }
+    .nord-mini-card.border-red    { border-left-color: var(--nord11); }
+
+    /* Diagnostics, Root Causes & Risks */
+    .diagnostics > * + * { margin-top: 1rem; }
+    .callout, .diagnostic, .root-cause, .risk {
+      padding: 1rem 1.15rem;
+      border: 1px solid var(--border);
+      border-left: 0.25rem solid var(--accent);
+      border-radius: 0.65rem;
+      background: var(--surface-alt);
+    }
+    .root-cause { border-left-color: var(--warn); }
+    .risk { border-left-color: var(--bad); }
+    .callout h3, .diagnostic h3, .root-cause h3, .risk h3 { margin-bottom: 0.4rem; }
+    .callout p, .diagnostic p, .root-cause p, .risk p { color: var(--text); }
+    .visually-hidden { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+
+    @media (max-width: 48rem) {
+      main { width: min(100% - 1.25rem, 76rem); padding-top: 2rem; }
+      .kpi-grid, .diagram-panels { grid-template-columns: 1fr; gap: 0.75rem; }
+      .summary, .progress-panel, .diagnostics { padding: 1.1rem; }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <header class="report-header">
+      <p class="eyebrow">Final Evaluation Verdict</p>
+      <h1>Agentic Judge Evaluation Report</h1>
+      <p>A rigorous, evidence-backed evaluation with deterministic checks and risk analysis.</p>
+    </header>
+
+    <aside class="callout diagnostic" role="status">
+      <h2>Validation: Verified</h2>
+      <p>All evaluation traces, execution artifacts, and citation links have been verified against grounded assertions.</p>
+    </aside>
+
+    <section class="summary panel" aria-labelledby="verdict-heading">
+      <div>
+        <p class="section-kicker">Final Decision</p>
+        <h2 id="verdict-heading">Verdict Summary</h2>
+        <span class="status-pill pill-good">PASS</span>
+      </div>
+      <div class="score-block">
+        <span class="score-label">Overall Score</span>
+        <span class="score">95.8%</span>
+      </div>
+    </section>
+
+    <section class="section" aria-labelledby="metrics-heading">
+      <div class="section-heading">
+        <p class="section-kicker">At a Glance</p>
+        <h2 id="metrics-heading">Key Evaluation Indicators</h2>
+      </div>
+      <div class="kpi-grid metric-grid">
+        <article class="metric-card">
+          <span class="kpi-label">Evaluated Scenarios</span>
+          <span class="kpi-value">24 / 24</span>
+          <span class="kpi-sub">Full benchmark coverage</span>
+        </article>
+        <article class="metric-card">
+          <span class="kpi-label">Deterministic Checks</span>
+          <span class="kpi-value">100%</span>
+          <span class="kpi-sub">All assertions passed</span>
+        </article>
+        <article class="metric-card">
+          <span class="kpi-label">Safety &amp; Compliance</span>
+          <span class="kpi-value">Zero Flaws</span>
+          <span class="kpi-sub">No regressions or leaks detected</span>
+        </article>
+      </div>
+    </section>
+
+    <section class="section" aria-labelledby="pipeline-heading">
+      <div class="section-heading">
+        <p class="section-kicker">Architecture</p>
+        <h2 id="pipeline-heading">Evaluation Pipeline Stages</h2>
+      </div>
+      <div class="diagram-panels">
+        <article class="panel">
+          <div class="panel-visual" aria-hidden="true">
+            <span class="visual-block">01</span>
+            <span class="visual-line"></span>
+            <span class="visual-block">ING</span>
+          </div>
+          <h3>Stage 1: Trace Ingestion</h3>
+          <p>Execution logs and tool calls normalized into standard evaluation schema.</p>
+        </article>
+        <article class="panel">
+          <div class="panel-visual" aria-hidden="true">
+            <span class="visual-block">02</span>
+            <span class="visual-line"></span>
+            <span class="visual-block">CHK</span>
+          </div>
+          <h3>Stage 2: Deterministic Assertions</h3>
+          <p>Schema validation, constraint boundary checks, and artifact diffing.</p>
+        </article>
+        <article class="panel">
+          <div class="panel-visual" aria-hidden="true">
+            <span class="visual-block">03</span>
+            <span class="visual-line"></span>
+            <span class="visual-block">JUD</span>
+          </div>
+          <h3>Stage 3: LLM Judge Scoring</h3>
+          <p>Grounded factuality, hallucination check, and risk surface scoring.</p>
+        </article>
+      </div>
+    </section>
+
+    <section class="section" aria-labelledby="progress-heading">
+      <div class="section-heading">
+        <p class="section-kicker">Coverage</p>
+        <h2 id="progress-heading">Phase &amp; Dimension Progress</h2>
+        <p>Completion and score distribution across evaluation dimensions.</p>
+      </div>
+      <div class="progress-panel panel">
+        <article class="progress-item">
+          <div class="progress-header">
+            <span>Functional Correctness</span>
+            <span>24 / 24 (100%)</span>
+          </div>
+          <div class="progress-track"><div class="progress-fill" style="width: 100%;"></div></div>
+        </article>
+        <article class="progress-item">
+          <div class="progress-header">
+            <span>Reasoning &amp; Evidence Grounding</span>
+            <span>23 / 24 (95.8%)</span>
+          </div>
+          <div class="progress-track"><div class="progress-fill" style="width: 95.8%;"></div></div>
+        </article>
+        <article class="progress-item">
+          <div class="progress-header">
+            <span>Constraint Adherence</span>
+            <span>24 / 24 (100%)</span>
+          </div>
+          <div class="progress-track"><div class="progress-fill" style="width: 100%;"></div></div>
+        </article>
+      </div>
+    </section>
+
+    <section class="section" aria-labelledby="comparison-heading">
+      <div class="section-heading">
+        <p class="section-kicker">Evidence</p>
+        <h2 id="comparison-heading">Case Comparison &amp; Outcomes</h2>
+        <p>Detailed verification for representative test scenarios.</p>
+      </div>
+      <div class="legend" role="group" aria-label="Case status legend">
+        <span class="status-pill pill-good">Selected / Passed</span>
+        <span class="status-pill pill-warn">Evaluated / Flaky</span>
+        <span class="status-pill pill-bad">Rejected / Failed</span>
+      </div>
+      <div class="table-wrap" role="region" aria-labelledby="comparison-heading" tabindex="0">
+        <table class="compare-table">
+          <caption class="visually-hidden">Comparison of cases, statuses, and root causes</caption>
+          <thead>
+            <tr>
+              <th scope="col">Scenario</th>
+              <th scope="col">Status</th>
+              <th scope="col">Findings &amp; Root Cause Analysis</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr class="row-selected">
+              <td>
+                <span class="cell-title">Case-01: Topology Discovery</span>
+                <span class="cell-sub">Latency: 280ms | Tokens: 1.2k</span>
+              </td>
+              <td><span class="status-pill pill-good">PASS</span></td>
+              <td>Successfully identified all nodes and dependencies without error.</td>
+            </tr>
+            <tr class="row-selected">
+              <td>
+                <span class="cell-title">Case-02: Incident Root Cause</span>
+                <span class="cell-sub">Latency: 410ms | Tokens: 1.8k</span>
+              </td>
+              <td><span class="status-pill pill-good">PASS</span></td>
+              <td>Correlated log stream burst with pod eviction; pinpointed memory limit.</td>
+            </tr>
+            <tr class="row-evaluated">
+              <td>
+                <span class="cell-title">Case-03: Secondary Fallback Flow</span>
+                <span class="cell-sub">Latency: 790ms | Tokens: 3.1k</span>
+              </td>
+              <td><span class="status-pill pill-warn">WARN</span></td>
+              <td>Fallback engaged correctly after retry; minor delay during failover negotiation.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="section" aria-labelledby="findings-heading">
+      <div class="section-heading">
+        <p class="section-kicker">Detailed Findings</p>
+        <h2 id="findings-heading">Multi-Point Analysis (Zero Bullet Lists)</h2>
+        <p>Specific findings rendered as colored Nord mini-cards.</p>
+      </div>
+      <div class="card-mini-stack">
+        <div class="nord-mini-card border-green">
+          <p><strong>High Citation Density:</strong> 98.2% of statements are backed by direct log line or configuration references.</p>
+        </div>
+        <div class="nord-mini-card border-blue">
+          <p><strong>Clean Tool Calling:</strong> Zero redundant or cyclic tool executions across all 24 evaluated scenarios.</p>
+        </div>
+        <div class="nord-mini-card border-yellow">
+          <p><strong>Latency Variance:</strong> Failover path required 790ms compared to the 340ms average; optimization recommended.</p>
+        </div>
+        <div class="nord-mini-card border-purple">
+          <p><strong>Context Efficiency:</strong> Context window usage remained under 12k tokens per trace with no degradation.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" aria-labelledby="diagnostics-heading">
+      <div class="section-heading">
+        <p class="section-kicker">Diagnostics &amp; Risks</p>
+        <h2 id="diagnostics-heading">Root Causes &amp; Recommendations</h2>
+        <p>Systemic observations and mitigation steps.</p>
+      </div>
+      <div class="diagnostics panel">
+        <article class="callout diagnostic">
+          <h3>Summary &amp; Quality Assessment</h3>
+          <p>Overall solution exhibits robust adherence to domain safety constraints and produces verified reproducible outputs.</p>
+        </article>
+        <article class="callout root-cause">
+          <h3>Observed Flakiness</h3>
+          <p>Intermittent timeout on downstream health check probe during cold start; resolved by increasing probe threshold from 2s to 5s.</p>
+        </article>
+        <article class="callout risk">
+          <h3>Deployment Considerations</h3>
+          <p>Ensure canary rollout is utilized in production cluster to monitor downstream rate limits during traffic ramp.</p>
+        </article>
+      </div>
+    </section>
+  </main>
+</body>
+</html>
